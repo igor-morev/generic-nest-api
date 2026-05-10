@@ -9,13 +9,19 @@ import {
   JoinTable,
 } from 'typeorm';
 
-@Entity('rooms')
+@Entity('room')
 export class Room {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
   @Column({ unique: true })
   name!: string;
+
+  @Column({
+    type: 'varchar', // или 'enum', если вы создали его в БД
+    default: 'direct',
+  })
+  type!: 'direct' | 'group';
 
   @ManyToMany(() => User, (user) => user.rooms)
   @JoinTable({ name: 'room_users' }) // Указываем имя таблицы для связи

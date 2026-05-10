@@ -12,6 +12,7 @@ import {
 import { JwtPayload } from 'src/auth/types/jwt';
 import * as createMessageDto from 'src/message/dto/create-message.dto';
 import { MessageService } from 'src/message/message.service';
+import { Room } from 'src/room/room.enitity';
 import { RoomService } from 'src/room/room.service';
 import { UserService } from 'src/user/user.service';
 import { URL } from 'url';
@@ -33,9 +34,8 @@ export type SocketEventType =
   | 'meeting_ended';
 
 interface ActiveMeeting {
-  roomId: string;
+  room: Room;
   host: any; // Данные хоста (UserDto)
-  type: 'direct' | 'group';
   meetingLink: string;
   status: 'active' | 'inactive';
   createdAt: number;
@@ -170,7 +170,7 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @SubscribeMessage<SocketEventType>('start_meeting')
   async handleStartMeetingEvent(
     @ConnectedSocket() client: WebSocket,
-    @MessageBody() data: createMessageDto.CreateMessageDto,
+    @MessageBody() data: { roomId: string },
   ) {
     const userId = (client as any).user.sub as string;
 
@@ -281,7 +281,6 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   ) {
     // Relay signaling data (offer/answer/candidates)
 
-    console.log('video-signal', data);
     const response = JSON.stringify({
       event: 'video-signal',
       payload: data,
@@ -293,7 +292,6 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     senderId: string,
     roomId: string,
     status: 'active' | 'inactive',
-    isP2P: boolean = false, // Добавляем флаг, чтобы понимать тип звонка
   ) {
     // 1. Получаем комнату из базы, чтобы знать список участников
     const room = await this.roomService.findOne(roomId);
@@ -309,9 +307,8 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
       // 3. Сохраняем встречу в память сервера
       const meetingData: ActiveMeeting = {
-        roomId,
+        room,
         host: senderDto,
-        type: isP2P ? 'direct' : 'group',
         meetingLink,
         status: 'active',
         createdAt: Date.now(),
@@ -325,22 +322,16 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
         payload: meetingData,
       };
 
-      // 5. Рассылаем приглашение
-      if (isP2P) {
-        // Если звонок личный — отправляем только второму участнику
-        const receiver = room.users.find((u) => u.id !== senderId);
-        if (receiver) this.emit(receiver.id, invitation);
-      } else {
-        // Если групповой — всем в комнате, кроме отправителя
-        room.users.forEach((user) => {
-          if (user.id !== senderId) {
-            this.emit(user.id, invitation);
-          }
-        });
-      }
+      console.log(room);
+
+      room.users.forEach((user) => {
+        if (user.id !== senderId) {
+          this.emit(user.id, invitation);
+        }
+      });
 
       console.log(
-        `Meeting started in room ${roomId}. Type: ${meetingData.type}`,
+        `Meeting started in room ${room.name}. Type: ${meetingData.room.type}`,
       );
     } else {
       // Если статус inactive — удаляем встречу из памяти

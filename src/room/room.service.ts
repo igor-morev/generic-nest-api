@@ -12,26 +12,60 @@ export class RoomService {
     private roomRepository: Repository<Room>,
   ) {}
 
-  create(params: CreateRoomDto): Promise<Room> {
+  async create(params: CreateRoomDto): Promise<Room> {
     const newRoom = this.roomRepository.create({
       name: params.name,
+      type: params.type,
+      users: params.users?.map((id) => ({ id })),
     });
 
     return this.roomRepository.save(newRoom);
+  }
+
+  isRoomExistsWithSameUsers(users: string[]) {
+    return this.roomRepository
+      .createQueryBuilder('room')
+      .innerJoin('room.users', 'user')
+      .where('user.id IN (:...ids)', { ids: users })
+      .groupBy('room.id')
+      .having('COUNT(user.id) = 2')
+      .getOne();
+  }
+
+  async findDirectChat(userId: string, recipientId: string) {
+    const result = await this.roomRepository
+      .createQueryBuilder('room')
+      .innerJoin('room.users', 'user')
+      .where('room.type = :type', { type: 'direct' })
+      .andWhere('user.id IN (:...ids)', { ids: [userId, recipientId] })
+      .groupBy('room.id')
+      .having('COUNT(user.id) = 2') // Убеждаемся, что именно эта пара
+      .getOne();
+
+    console.log('findDirectChat', result);
+
+    return result;
   }
 
   findAll(): Promise<Room[]> {
     return this.roomRepository.find();
   }
 
-  findAllForUser(userId: string): Promise<Room[]> {
-    return this.roomRepository.find({
-      where: {
-        users: {
-          id: userId,
-        },
-      },
-    });
+  async findAllForUser(userId: string): Promise<Room[]> {
+    return (
+      this.roomRepository
+        .createQueryBuilder('room')
+        // Этот join нужен для фильтрации (проверки вашего участия в direct чатах)
+        .leftJoin('room.users', 'participant')
+        // Этот join загружает ВСЕХ пользователей комнаты в массив users
+        .leftJoinAndSelect('room.users', 'allUsers')
+        .where('room.type = :groupType', { groupType: 'group' })
+        .orWhere('(room.type = :directType AND participant.id = :userId)', {
+          directType: 'direct',
+          userId,
+        })
+        .getMany()
+    );
   }
 
   async findOne(id: string): Promise<Room | null> {

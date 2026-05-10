@@ -7,5 +7,6 @@ import { UsersModule } from 'src/user/user.module';
 @Module({
   imports: [MessageModule, RoomModule, UsersModule],
   providers: [EventsGateway],
+  exports: [EventsGateway]
 })
 export class EventsModule {}
