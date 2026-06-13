@@ -9,6 +9,7 @@ import { RoomModule } from './room/room.module';
 import { ConfigService } from '@nestjs/config';
 import { ChatModule } from './chat/chat.module';
 import { AiModule } from './ai/ai.module';
+import { ExportModule } from './export/export.module';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { AiModule } from './ai/ai.module';
     RoomModule,
     ChatModule,
     AiModule,
+    ExportModule,
   ],
   controllers: [AppController],
 })
