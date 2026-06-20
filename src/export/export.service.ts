@@ -4,7 +4,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 export interface WidgetPropertyModel {
   defaultClass?: string;
   class?: string;
-  content?: string;
+  content?: any;
   label?: string;
   name?: string;
   placeholder?: string;
@@ -111,6 +111,10 @@ export class ExportService {
 
         /* Дополнительные настройки для v4 */
         --tracking-tight: -0.02em;
+
+        --container-sm: 640px;
+        --container-md: 768px;
+        --container-lg: 1024px;
       }
     </style>
     <style>
@@ -121,6 +125,26 @@ export class ExportService {
 </head>
 <body class="min-h-screen flex flex-col antialiased">
     ${htmlBody}
+
+    <!-- Нативный скрипт для интерактивности мобильного меню -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const burgerBtn = document.querySelector('.header-burger-icon');
+            const mobileMenu = document.getElementById('mobile-dropdown-menu');
+
+            if (burgerBtn && mobileMenu) {
+                burgerBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    mobileMenu.classList.toggle('hidden');
+                });
+
+                // Закрываем меню при клике в любую другую область экрана
+                document.addEventListener('click', () => {
+                    mobileMenu.classList.add('hidden');
+                });
+            }
+        });
+    </script>
 </body>
 </html>
     `.trim();
@@ -174,9 +198,23 @@ export class ExportService {
     const widgetType = layer.widgetReference?.widgetType;
 
     switch (widgetType) {
-      case 'header':
-        tag = 'header';
-        break;
+      case 'header': {
+        const navLinks =
+          typeof layer.layerPropertyModel?.content === 'object'
+            ? (layer.layerPropertyModel?.content.navLinks as any[])
+            : [];
+
+        const mobileMenuHtml = `
+          <div id="mobile-dropdown-menu" class="hidden absolute top-full left-0 w-full bg-surface border-b shadow-xl p-6 flex flex-col gap-y-4 lg:hidden z-40">
+            ${navLinks.map((link) => `<a href="${link.href}" class="font-body text-lg font-medium text-contrast py-2 border-b border-contrast/5 last:border-0">${link.label}</a>`).join('')}
+          </div>
+        `.trim();
+
+        return `<header class="${combinedClasses}">
+          ${layer.children?.map((child) => this.renderLayer(child)).join('\n')}
+          ${mobileMenuHtml}
+        </header>`;
+      }
       case 'footer':
         tag = 'footer';
         break;
