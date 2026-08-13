@@ -112,9 +112,9 @@ export class ExportService {
         /* Дополнительные настройки для v4 */
         --tracking-tight: -0.02em;
 
-        --container-sm: 640px;
-        --container-md: 768px;
-        --container-lg: 1024px;
+        --container-sm: 40rem;
+        --container-md: 48rem;
+        --container-lg: 64rem;
       }
     </style>
     <style>

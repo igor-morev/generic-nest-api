@@ -10,6 +10,7 @@ import { ConfigService } from '@nestjs/config';
 import { ChatModule } from './chat/chat.module';
 import { AiModule } from './ai/ai.module';
 import { ExportModule } from './export/export.module';
+import { ProjectModule } from './project/project.module';
 
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import { ExportModule } from './export/export.module';
     ChatModule,
     AiModule,
     ExportModule,
+    ProjectModule,
   ],
   controllers: [AppController],
 })
