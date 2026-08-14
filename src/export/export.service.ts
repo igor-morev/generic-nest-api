@@ -4,6 +4,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 export interface WidgetPropertyModel {
   defaultClass?: string;
   class?: string;
+  layout?: string;
   content?: any;
   label?: string;
   name?: string;
@@ -31,6 +32,7 @@ export interface WidgetPropertyModel {
 }
 
 export interface WidgetReference {
+  id: string;
   widgetType: string;
   defaultWidgetPropertyModel: WidgetPropertyModel;
 }
