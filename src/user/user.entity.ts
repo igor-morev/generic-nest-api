@@ -1,5 +1,5 @@
 import { Message } from 'src/message/message.entity';
-import { Room } from 'src/room/room.enitity';
+import { Room } from 'src/room/room.entity';
 import {
   Entity,
   Column,

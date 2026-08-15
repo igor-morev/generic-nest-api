@@ -1,4 +1,4 @@
-import { Room } from 'src/room/room.enitity';
+import { Room } from 'src/room/room.entity';
 import { User } from 'src/user/user.entity';
 import {
   Entity,
