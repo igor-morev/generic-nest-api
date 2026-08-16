@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -123,6 +124,30 @@ export class ProjectService {
     });
 
     return this.pageRepository.save(page);
+  }
+
+  async deletePage(
+    projectId: string,
+    pageId: string,
+    ownerId: string,
+  ): Promise<void> {
+    const project = await this.projectRepository.findOne({
+      where: { id: projectId },
+      relations: ['pages'],
+    });
+
+    this.assertOwnership(project, ownerId);
+
+    const page = project.pages.find((p) => p.id === pageId);
+    if (!page) {
+      throw new NotFoundException('Page not found');
+    }
+
+    if (project.pages.length <= 1) {
+      throw new BadRequestException('A project must have at least one page');
+    }
+
+    await this.pageRepository.delete({ id: pageId, projectId });
   }
 
   private assertOwnership(

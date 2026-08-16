@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -93,5 +94,14 @@ export class ProjectController {
     @Body() dto: CreatePageDto,
   ) {
     return this.projectService.createPage(projectId, req.user.sub, dto);
+  }
+
+  @Delete(':projectId/page/:pageId')
+  deletePage(
+    @Request() req: { user: JwtPayload },
+    @Param('projectId') projectId: string,
+    @Param('pageId') pageId: string,
+  ) {
+    return this.projectService.deletePage(projectId, pageId, req.user.sub);
   }
 }

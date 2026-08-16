@@ -1,4 +1,8 @@
-import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { ObjectLiteral, Repository } from 'typeorm';
@@ -15,6 +19,7 @@ const createMockRepository = <T extends ObjectLiteral = any>(): MockRepository<T
   save: jest.fn(),
   find: jest.fn(),
   findOne: jest.fn(),
+  delete: jest.fn(),
 });
 
 describe('ProjectService', () => {
@@ -207,6 +212,58 @@ describe('ProjectService', () => {
         expect.objectContaining({ projectId: 'p1', pageName: 'About', layers: [] }),
       );
       expect(page).toEqual(expect.objectContaining({ id: 'pg2', pageName: 'About' }));
+    });
+  });
+
+  describe('deletePage', () => {
+    it('deletes the page when the project has more than one', async () => {
+      projectRepository.findOne!.mockResolvedValue({
+        id: 'p1',
+        ownerId,
+        pages: [{ id: 'pg1' }, { id: 'pg2' }],
+      });
+      pageRepository.delete!.mockResolvedValue(undefined);
+
+      await service.deletePage('p1', 'pg2', ownerId);
+
+      expect(pageRepository.delete).toHaveBeenCalledWith({ id: 'pg2', projectId: 'p1' });
+    });
+
+    it('throws BadRequestException when it is the only page', async () => {
+      projectRepository.findOne!.mockResolvedValue({
+        id: 'p1',
+        ownerId,
+        pages: [{ id: 'pg1' }],
+      });
+
+      await expect(service.deletePage('p1', 'pg1', ownerId)).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
+      expect(pageRepository.delete).not.toHaveBeenCalled();
+    });
+
+    it('throws NotFoundException when the page does not belong to the project', async () => {
+      projectRepository.findOne!.mockResolvedValue({
+        id: 'p1',
+        ownerId,
+        pages: [{ id: 'pg1' }, { id: 'pg2' }],
+      });
+
+      await expect(service.deletePage('p1', 'missing', ownerId)).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+    });
+
+    it('throws ForbiddenException when the project is not owned by the caller', async () => {
+      projectRepository.findOne!.mockResolvedValue({
+        id: 'p1',
+        ownerId: 'someone-else',
+        pages: [{ id: 'pg1' }, { id: 'pg2' }],
+      });
+
+      await expect(service.deletePage('p1', 'pg1', ownerId)).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
     });
   });
 });

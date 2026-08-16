@@ -18,6 +18,7 @@ describe('ProjectController', () => {
       findPage: jest.fn(),
       savePage: jest.fn(),
       createPage: jest.fn(),
+      deletePage: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -75,5 +76,10 @@ describe('ProjectController', () => {
   it('createPage() delegates to ProjectService.createPage', () => {
     controller.createPage(user, 'p1', { pageName: 'About' });
     expect(service.createPage).toHaveBeenCalledWith('p1', 'owner-1', { pageName: 'About' });
+  });
+
+  it('deletePage() delegates to ProjectService.deletePage', () => {
+    controller.deletePage(user, 'p1', 'pg1');
+    expect(service.deletePage).toHaveBeenCalledWith('p1', 'pg1', 'owner-1');
   });
 });
