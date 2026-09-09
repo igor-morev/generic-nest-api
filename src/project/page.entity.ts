@@ -21,6 +21,9 @@ export class Page {
   @Column({ type: 'jsonb', default: () => "'[]'" })
   layers!: LayerDto[];
 
+  @Column({ type: 'jsonb', nullable: true })
+  publishedLayers?: LayerDto[];
+
   @Column()
   projectId!: string;
 

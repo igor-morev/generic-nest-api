@@ -104,4 +104,14 @@ export class ProjectController {
   ) {
     return this.projectService.deletePage(projectId, pageId, req.user.sub);
   }
+
+  @Post(':id/publish')
+  publish(@Request() req: { user: JwtPayload }, @Param('id') id: string) {
+    return this.projectService.publish(id, req.user.sub);
+  }
+
+  @Post(':id/unpublish')
+  unpublish(@Request() req: { user: JwtPayload }, @Param('id') id: string) {
+    return this.projectService.unpublish(id, req.user.sub);
+  }
 }

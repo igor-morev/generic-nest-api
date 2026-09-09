@@ -9,6 +9,7 @@ import { ObjectLiteral, Repository } from 'typeorm';
 import { ProjectService } from './project.service';
 import { Project } from './project.entity';
 import { Page } from './page.entity';
+import { ExportService } from 'src/export/export.service';
 
 type MockRepository<T extends ObjectLiteral = any> = Partial<
   Record<keyof Repository<T>, jest.Mock>
@@ -26,15 +27,19 @@ describe('ProjectService', () => {
   let service: ProjectService;
   let projectRepository: MockRepository<Project>;
   let pageRepository: MockRepository<Page>;
+  let exportService: { generateFullHtml: jest.Mock };
 
   const ownerId = 'owner-1';
 
   beforeEach(async () => {
+    exportService = { generateFullHtml: jest.fn() };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ProjectService,
         { provide: getRepositoryToken(Project), useValue: createMockRepository<Project>() },
         { provide: getRepositoryToken(Page), useValue: createMockRepository<Page>() },
+        { provide: ExportService, useValue: exportService },
       ],
     }).compile();
 
@@ -264,6 +269,153 @@ describe('ProjectService', () => {
       await expect(service.deletePage('p1', 'pg1', ownerId)).rejects.toBeInstanceOf(
         ForbiddenException,
       );
+    });
+  });
+
+  describe('publish', () => {
+    it('copies theme/layers into the snapshot columns and flips status', async () => {
+      const theme = { name: 'Grooming' } as any;
+      const project = {
+        id: 'p1',
+        ownerId,
+        status: 'draft',
+        theme,
+        pages: [
+          { id: 'pg1', layers: [{ id: 'l1' }] },
+          { id: 'pg2', layers: [{ id: 'l2' }] },
+        ],
+      };
+      projectRepository.findOne!.mockResolvedValue(project);
+      projectRepository.save!.mockImplementation(async (p) => p);
+
+      const result = await service.publish('p1', ownerId);
+
+      expect(projectRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: 'published',
+          publishedTheme: theme,
+          publishedAt: expect.any(Date),
+          pages: [
+            expect.objectContaining({ id: 'pg1', publishedLayers: [{ id: 'l1' }] }),
+            expect.objectContaining({ id: 'pg2', publishedLayers: [{ id: 'l2' }] }),
+          ],
+        }),
+      );
+      expect(result.status).toBe('published');
+    });
+
+    it('throws ForbiddenException when the project is not owned by the caller', async () => {
+      projectRepository.findOne!.mockResolvedValue({
+        id: 'p1',
+        ownerId: 'someone-else',
+        pages: [],
+      });
+
+      await expect(service.publish('p1', ownerId)).rejects.toBeInstanceOf(ForbiddenException);
+    });
+  });
+
+  describe('unpublish', () => {
+    it('flips status back to draft without touching the snapshot', async () => {
+      const project = {
+        id: 'p1',
+        ownerId,
+        status: 'published',
+        publishedTheme: { name: 'Grooming' },
+        pages: [{ id: 'pg1', publishedLayers: [{ id: 'l1' }] }],
+      };
+      projectRepository.findOne!.mockResolvedValue(project);
+      projectRepository.save!.mockImplementation(async (p) => p);
+
+      const result = await service.unpublish('p1', ownerId);
+
+      expect(projectRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({ status: 'draft' }),
+      );
+      expect(result.status).toBe('draft');
+    });
+  });
+
+  describe('getPublishedSite', () => {
+    it('renders the published snapshot for the home page when no pageId is given', async () => {
+      const project = {
+        id: 'p1',
+        status: 'published',
+        name: 'My Site',
+        publishedTheme: { name: 'Grooming' },
+        pages: [
+          { id: 'pg1', publishedLayers: [{ id: 'l1' }] },
+          { id: 'pg2', publishedLayers: [{ id: 'l2' }] },
+        ],
+      };
+      projectRepository.findOne!.mockResolvedValue(project);
+      exportService.generateFullHtml.mockReturnValue('<html>ok</html>');
+
+      const html = await service.getPublishedSite('p1');
+
+      expect(exportService.generateFullHtml).toHaveBeenCalledWith(
+        [{ id: 'l1' }],
+        { name: 'Grooming' },
+        'My Site',
+      );
+      expect(html).toBe('<html>ok</html>');
+    });
+
+    it('renders the given page when a pageId is provided', async () => {
+      const project = {
+        id: 'p1',
+        status: 'published',
+        name: 'My Site',
+        publishedTheme: { name: 'Grooming' },
+        pages: [
+          { id: 'pg1', publishedLayers: [{ id: 'l1' }] },
+          { id: 'pg2', publishedLayers: [{ id: 'l2' }] },
+        ],
+      };
+      projectRepository.findOne!.mockResolvedValue(project);
+      exportService.generateFullHtml.mockReturnValue('<html>page 2</html>');
+
+      const html = await service.getPublishedSite('p1', 'pg2');
+
+      expect(exportService.generateFullHtml).toHaveBeenCalledWith(
+        [{ id: 'l2' }],
+        { name: 'Grooming' },
+        'My Site',
+      );
+      expect(html).toBe('<html>page 2</html>');
+    });
+
+    it('throws NotFoundException when the project does not exist', async () => {
+      projectRepository.findOne!.mockResolvedValue(null);
+
+      await expect(service.getPublishedSite('missing')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+    });
+
+    it('throws NotFoundException when the project has never been published', async () => {
+      projectRepository.findOne!.mockResolvedValue({ id: 'p1', status: 'draft', pages: [] });
+
+      await expect(service.getPublishedSite('p1')).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('throws NotFoundException when the requested page has no published snapshot', async () => {
+      projectRepository.findOne!.mockResolvedValue({
+        id: 'p1',
+        status: 'published',
+        publishedTheme: { name: 'Grooming' },
+        pages: [{ id: 'pg1', publishedLayers: null }],
+      });
+
+      await expect(service.getPublishedSite('p1', 'pg1')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+    });
+
+    it('does not enforce ownership — this is the public path', async () => {
+      // No ownerId parameter exists on getPublishedSite at all; this test documents that
+      // intentional omission so it doesn't get "fixed" into an ownership check by mistake.
+      expect(service.getPublishedSite.length).toBe(2);
     });
   });
 });

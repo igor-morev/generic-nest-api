@@ -6,6 +6,7 @@ export interface ProjectSummaryDto {
   industry?: string;
   status: 'draft' | 'published';
   updatedAt?: Date;
+  publishedAt?: Date;
 }
 
 export interface ProjectDto extends ProjectSummaryDto {

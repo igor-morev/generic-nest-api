@@ -58,6 +58,13 @@ Every feature is `src/<feature>/`:
   against; hand-write the migration (`MigrationInterface`, raw `queryRunner.query()`) when you
   can't risk the generator touching unrelated tables — that's what `project/`'s initial
   migration did.
+- **`migration:generate` output still needs a read before you keep it** — confirmed 2026-08-26:
+  generating a migration that only added 3 new nullable columns also produced DROP/CREATE
+  statements for the *existing* FK constraints and indexes on the same tables, because TypeORM's
+  default constraint-naming didn't match this repo's earlier hand-chosen names (`FK_page_project`
+  etc.) even though the actual constraint behavior was identical. Trim generated migrations down
+  to the columns/constraints you actually intended to change; don't let unrelated churn on
+  working constraints ride along just because the generator produced it.
 - **Never run `migration:run` against a real database without the user's explicit go-ahead** —
   it's a schema change on shared state, not a reversible local edit.
 

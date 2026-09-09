@@ -32,6 +32,12 @@ export class Project {
   @Column({ type: 'jsonb', nullable: true })
   theme?: DesignTokens;
 
+  @Column({ type: 'timestamp', nullable: true })
+  publishedAt?: Date;
+
+  @Column({ type: 'jsonb', nullable: true })
+  publishedTheme?: DesignTokens;
+
   @Column()
   ownerId!: string;
 

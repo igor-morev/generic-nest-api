@@ -8,6 +8,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Project } from './project.entity';
 import { Page } from './page.entity';
+import { ExportService } from 'src/export/export.service';
 import {
   CreatePageDto,
   CreateProjectDto,
@@ -24,6 +25,7 @@ export class ProjectService {
     private projectRepository: Repository<Project>,
     @InjectRepository(Page)
     private pageRepository: Repository<Page>,
+    private exportService: ExportService,
   ) {}
 
   async create(ownerId: string, dto: CreateProjectDto): Promise<ProjectDto> {
@@ -150,6 +152,66 @@ export class ProjectService {
     await this.pageRepository.delete({ id: pageId, projectId });
   }
 
+  async publish(id: string, ownerId: string): Promise<ProjectDto> {
+    const project = await this.projectRepository.findOne({
+      where: { id },
+      relations: ['pages'],
+    });
+
+    this.assertOwnership(project, ownerId);
+
+    project.publishedTheme = project.theme;
+    project.pages = project.pages.map((page) => {
+      page.publishedLayers = page.layers;
+      return page;
+    });
+    project.status = 'published';
+    project.publishedAt = new Date();
+
+    const saved = await this.projectRepository.save(project);
+    return this.toProjectDto(saved);
+  }
+
+  async unpublish(id: string, ownerId: string): Promise<ProjectDto> {
+    const project = await this.projectRepository.findOne({
+      where: { id },
+      relations: ['pages'],
+    });
+
+    this.assertOwnership(project, ownerId);
+
+    project.status = 'draft';
+    const saved = await this.projectRepository.save(project);
+
+    return this.toProjectDto(saved);
+  }
+
+  /** Public path — no ownership check. Serves the frozen snapshot, not the live draft. */
+  async getPublishedSite(projectId: string, pageId?: string): Promise<string> {
+    const project = await this.projectRepository.findOne({
+      where: { id: projectId },
+      relations: ['pages'],
+    });
+
+    if (!project || project.status !== 'published') {
+      throw new NotFoundException('This site is not published');
+    }
+
+    const page = pageId
+      ? project.pages.find((p) => p.id === pageId)
+      : project.pages[0];
+
+    if (!page || !page.publishedLayers || !project.publishedTheme) {
+      throw new NotFoundException('Page not found');
+    }
+
+    return this.exportService.generateFullHtml(
+      page.publishedLayers,
+      project.publishedTheme,
+      project.name,
+    );
+  }
+
   private assertOwnership(
     project: Project | null,
     ownerId: string,
@@ -170,6 +232,7 @@ export class ProjectService {
       industry: project.industry,
       status: project.status,
       updatedAt: project.updatedAt,
+      publishedAt: project.publishedAt,
     };
   }
 

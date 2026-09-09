@@ -19,6 +19,8 @@ describe('ProjectController', () => {
       savePage: jest.fn(),
       createPage: jest.fn(),
       deletePage: jest.fn(),
+      publish: jest.fn(),
+      unpublish: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -81,5 +83,15 @@ describe('ProjectController', () => {
   it('deletePage() delegates to ProjectService.deletePage', () => {
     controller.deletePage(user, 'p1', 'pg1');
     expect(service.deletePage).toHaveBeenCalledWith('p1', 'pg1', 'owner-1');
+  });
+
+  it('publish() delegates to ProjectService.publish with the caller id', () => {
+    controller.publish(user, 'p1');
+    expect(service.publish).toHaveBeenCalledWith('p1', 'owner-1');
+  });
+
+  it('unpublish() delegates to ProjectService.unpublish with the caller id', () => {
+    controller.unpublish(user, 'p1');
+    expect(service.unpublish).toHaveBeenCalledWith('p1', 'owner-1');
   });
 });
