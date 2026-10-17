@@ -38,10 +38,9 @@ import { ProjectModule } from './project/project.module';
         logging: ['error', 'warn'], // Логируем только ошибки, чтобы не забивать диск
         retryAttempts: 10, // Попытки переподключения при сбое базы
 
-        // 5. SSL (часто требуется облачными провайдерами, например AWS/Heroku)
-        // ssl: config.get<boolean>('DB_SSL')
-        //   ? { rejectUnauthorized: false }
-        //   : false,
+        // 5. SSL — required by most managed Postgres providers (Render included); their
+        // certs usually aren't in Node's default trust store, hence rejectUnauthorized: false.
+        ssl: config.get<string>('DB_SSL') === 'true' ? { rejectUnauthorized: false } : false,
       }),
     }),
     UsersModule,

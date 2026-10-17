@@ -1,0 +1,53 @@
+databases:
+  - name: dashboard-editor-db
+    plan: free
+    # Render's free Postgres plan currently expires after a fixed window unless upgraded —
+    # check Render's current policy before relying on this for anything beyond testing the
+    # deploy.
+
+services:
+  - type: web
+    name: dashboard-editor-api
+    runtime: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm run start:prod
+    envVars:
+      - key: DB_TYPE
+        value: postgres
+      - key: DB_HOST
+        fromDatabase:
+          name: dashboard-editor-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: dashboard-editor-db
+          property: port
+      - key: DB_USERNAME
+        fromDatabase:
+          name: dashboard-editor-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: dashboard-editor-db
+          property: password
+      - key: DB_NAME
+        fromDatabase:
+          name: dashboard-editor-db
+          property: database
+      - key: DB_SSL
+        value: "true"
+      # Secrets/config below are intentionally left for manual entry in the Render
+      # dashboard (sync: false) — not committed to the repo.
+      - key: JWT_ACCESS_SECRET
+        sync: false
+      - key: JWT_ACCESS_EXPIRES_IN
+        sync: false
+      - key: JWT_REFRESH_SECRET
+        sync: false
+      - key: JWT_REFRESH_EXPIRES_IN
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
