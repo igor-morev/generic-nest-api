@@ -5,7 +5,10 @@ import { WsAdapter } from '@nestjs/platform-ws';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     cors: {
-      origin: process.env.FRONTEND_URL,
+      // Comma-separated so the deployed frontend and a local dev frontend testing against this
+      // same deployed backend can both be allowed at once, e.g.
+      // "https://dashboard-editor.onrender.com,https://localhost:4201".
+      origin: process.env.FRONTEND_URL?.split(',').map((url) => url.trim()),
       methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
       preflightContinue: false,
       optionsSuccessStatus: 204,

@@ -49,5 +49,7 @@ services:
         sync: false
       - key: GEMINI_API_KEY
         sync: false
+      # Comma-separated list of allowed origins (see main.ts) — e.g. the deployed frontend
+      # plus a local dev frontend testing against this deployed backend.
       - key: FRONTEND_URL
         sync: false
