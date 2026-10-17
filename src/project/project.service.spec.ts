@@ -80,7 +80,7 @@ describe('ProjectService', () => {
         expect.objectContaining({
           id: 'p1',
           name: 'My Site',
-          pages: [{ id: 'pg1', pageName: 'Home Page' }],
+          pages: [{ id: 'pg1', pageName: 'Home Page', hasUnpublishedChanges: false }],
         }),
       );
     });
@@ -135,6 +135,80 @@ describe('ProjectService', () => {
       });
 
       await expect(service.findOne('p1', ownerId)).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    describe('hasUnpublishedChanges per page', () => {
+      it('is true when a published page has drifted from its snapshot', async () => {
+        projectRepository.findOne!.mockResolvedValue({
+          id: 'p1',
+          ownerId,
+          status: 'published',
+          theme: { name: 'A' },
+          publishedTheme: { name: 'A' },
+          pages: [{ id: 'pg1', layers: [{ id: 'l1' }], publishedLayers: [{ id: 'OLD' }] }],
+        });
+
+        const result = await service.findOne('p1', ownerId);
+
+        expect(result.pages).toEqual([
+          expect.objectContaining({ id: 'pg1', hasUnpublishedChanges: true }),
+        ]);
+      });
+
+      it('is true for every page when only the theme has drifted', async () => {
+        projectRepository.findOne!.mockResolvedValue({
+          id: 'p1',
+          ownerId,
+          status: 'published',
+          theme: { name: 'NEW' },
+          publishedTheme: { name: 'OLD' },
+          pages: [
+            { id: 'pg1', layers: [{ id: 'l1' }], publishedLayers: [{ id: 'l1' }] },
+            { id: 'pg2', layers: [{ id: 'l2' }], publishedLayers: [{ id: 'l2' }] },
+          ],
+        });
+
+        const result = await service.findOne('p1', ownerId);
+
+        expect(result.pages).toEqual([
+          expect.objectContaining({ id: 'pg1', hasUnpublishedChanges: true }),
+          expect.objectContaining({ id: 'pg2', hasUnpublishedChanges: true }),
+        ]);
+      });
+
+      it('is false when the published page matches its snapshot', async () => {
+        projectRepository.findOne!.mockResolvedValue({
+          id: 'p1',
+          ownerId,
+          status: 'published',
+          theme: { name: 'A' },
+          publishedTheme: { name: 'A' },
+          pages: [{ id: 'pg1', layers: [{ id: 'l1' }], publishedLayers: [{ id: 'l1' }] }],
+        });
+
+        const result = await service.findOne('p1', ownerId);
+
+        expect(result.pages).toEqual([
+          expect.objectContaining({ id: 'pg1', hasUnpublishedChanges: false }),
+        ]);
+      });
+
+      it('is always false for a draft project, regardless of the snapshot', async () => {
+        projectRepository.findOne!.mockResolvedValue({
+          id: 'p1',
+          ownerId,
+          status: 'draft',
+          theme: { name: 'A' },
+          publishedTheme: null,
+          pages: [{ id: 'pg1', layers: [{ id: 'l1' }], publishedLayers: null }],
+        });
+
+        const result = await service.findOne('p1', ownerId);
+
+        expect(result.pages).toEqual([
+          expect.objectContaining({ id: 'pg1', hasUnpublishedChanges: false }),
+        ]);
+      });
     });
   });
 

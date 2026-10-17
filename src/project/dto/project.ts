@@ -11,7 +11,7 @@ export interface ProjectSummaryDto {
 
 export interface ProjectDto extends ProjectSummaryDto {
   theme?: DesignTokens;
-  pages: { id: string; pageName: string }[];
+  pages: { id: string; pageName: string; hasUnpublishedChanges: boolean }[];
 }
 
 export interface CreateProjectDto {

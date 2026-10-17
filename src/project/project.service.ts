@@ -237,12 +237,21 @@ export class ProjectService {
   }
 
   private toProjectDto(project: Project): ProjectDto {
+    // A theme change is project-wide, so it marks every page as changed too, not just the one
+    // being edited — republishing would change how all of them render.
+    const themeChanged =
+      JSON.stringify(project.theme) !== JSON.stringify(project.publishedTheme);
+
     return {
       ...this.toProjectSummaryDto(project),
       theme: project.theme,
       pages: (project.pages || []).map((page) => ({
         id: page.id,
         pageName: page.pageName,
+        hasUnpublishedChanges:
+          project.status === 'published' &&
+          (themeChanged ||
+            JSON.stringify(page.layers) !== JSON.stringify(page.publishedLayers)),
       })),
     };
   }
